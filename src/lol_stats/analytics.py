@@ -62,7 +62,7 @@ def sample_empirical(
     return rng.choice(data, size=size, replace=True)
 
 
-def matchup_probability(
+def kill_score_probability(
     records: Iterable[TeamMatchRecord],
     team_a: str,
     team_b: str,
@@ -70,6 +70,8 @@ def matchup_probability(
     simulations: int = 10_000,
     seed: int = 42,
 ) -> WinProbabilities:
+    """Estimate which team records more kills, not which team wins the LoL match."""
+
     if simulations <= 0:
         raise ValueError("simulations must be positive")
     materialized = list(records)
@@ -98,3 +100,22 @@ def matchup_probability(
     ties = float(np.mean(team_a_scores == team_b_scores))
     b_wins = 1.0 - a_wins - ties
     return WinProbabilities(team_a_win=a_wins, tie=ties, team_b_win=b_wins)
+
+
+def matchup_probability(
+    records: Iterable[TeamMatchRecord],
+    team_a: str,
+    team_b: str,
+    *,
+    simulations: int = 10_000,
+    seed: int = 42,
+) -> WinProbabilities:
+    """Compatibility alias for :func:`kill_score_probability`."""
+
+    return kill_score_probability(
+        records,
+        team_a,
+        team_b,
+        simulations=simulations,
+        seed=seed,
+    )
