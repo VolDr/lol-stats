@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -19,6 +19,7 @@ def match_factory():
         blue_kills: int = 1,
         red_kills: int = 1,
         duration_seconds: int = 1800,
+        start_time_utc: datetime | None = None,
     ) -> MatchInput:
         red_result = 0.5 if blue_result == 0.5 else 1.0 - blue_result
         return MatchInput(
@@ -39,6 +40,8 @@ def match_factory():
                 result=red_result,
                 kills_by_role={"unknown": tuple(range(red_kills))},
             ),
+            start_time_utc=start_time_utc
+            or datetime.combine(match_date, datetime.min.time(), tzinfo=timezone.utc),
         )
 
     return make
