@@ -4,7 +4,7 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from importlib.resources import files
 from pathlib import Path
 
@@ -24,7 +24,7 @@ class LegacyDataError(ValueError):
 def _datetime_to_storage(value: datetime | None) -> str | None:
     if value is None:
         return None
-    return value.astimezone(timezone.utc).isoformat()
+    return value.astimezone(UTC).isoformat()
 
 
 def _datetime_from_storage(value: object) -> datetime | None:
@@ -33,7 +33,7 @@ def _datetime_from_storage(value: object) -> datetime | None:
     parsed = datetime.fromisoformat(str(value))
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError("stored datetime must include a timezone")
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 class MatchRepository:
