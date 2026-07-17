@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from lol_stats.evaluation import evaluate_temporally
+from lol_stats.evaluation import EloModel, evaluate_temporally
 from lol_stats.models import CanonicalMatch
 
 
@@ -44,3 +44,8 @@ def test_empty_test_window_returns_none_metrics() -> None:
     assert report.brier_score is None
     assert report.log_loss is None
     assert report.accuracy is None
+
+
+def test_blue_advantage_changes_initial_probability() -> None:
+    model = EloModel(team_a_advantage=50.0)
+    assert model.predict("Alpha", "Beta") > 0.5
