@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -42,7 +42,7 @@ def test_odds_round_trip(tmp_path, match_factory) -> None:
             "Alpha",
             "Beta",
             1.0,
-            start_time_utc=datetime(2020, 1, 2, 18, tzinfo=timezone.utc),
+            start_time_utc=datetime(2020, 1, 2, 18, tzinfo=UTC),
         )
     )
     repository.save_odds_quote(
@@ -50,7 +50,7 @@ def test_odds_round_trip(tmp_path, match_factory) -> None:
             source="test",
             source_match_id="1",
             bookmaker="Book",
-            captured_at=datetime(2020, 1, 2, 16, tzinfo=timezone.utc),
+            captured_at=datetime(2020, 1, 2, 16, tzinfo=UTC),
             team_a="Alpha",
             team_b="Beta",
             team_a_odds=2.1,
@@ -71,7 +71,7 @@ def test_odds_team_order_must_match_match(tmp_path, match_factory) -> None:
                 source="test",
                 source_match_id="1",
                 bookmaker="Book",
-                captured_at=datetime(2020, 1, 2, 16, tzinfo=timezone.utc),
+                captured_at=datetime(2020, 1, 2, 16, tzinfo=UTC),
                 team_a="Beta",
                 team_b="Alpha",
                 team_a_odds=2.1,
