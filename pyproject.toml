@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lol-stats"
-version = "0.1.0"
-description = "Reproducible League of Legends match ingestion and temporal evaluation toolkit"
+version = "0.2.0"
+description = "Reproducible League of Legends match, rating, and betting evaluation toolkit"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
