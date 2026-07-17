@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -41,7 +41,7 @@ def match_factory():
                 kills_by_role={"unknown": tuple(range(red_kills))},
             ),
             start_time_utc=start_time_utc
-            or datetime.combine(match_date, datetime.min.time(), tzinfo=timezone.utc),
+            or datetime.combine(match_date, datetime.min.time(), tzinfo=UTC),
         )
 
     return make
