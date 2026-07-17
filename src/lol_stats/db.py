@@ -4,15 +4,36 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, datetime, timezone
 from importlib.resources import files
 from pathlib import Path
 
-from .models import CanonicalMatch, MatchInput, TeamMatchRecord
+from .models import (
+    CanonicalMatch,
+    MatchInput,
+    OddsQuoteInput,
+    OddsQuoteRecord,
+    TeamMatchRecord,
+)
 
 
 class LegacyDataError(ValueError):
     """Raised when a legacy non-JSON event payload is encountered."""
+
+
+def _datetime_to_storage(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return value.astimezone(timezone.utc).isoformat()
+
+
+def _datetime_from_storage(value: object) -> datetime | None:
+    if value is None:
+        return None
+    parsed = datetime.fromisoformat(str(value))
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("stored datetime must include a timezone")
+    return parsed.astimezone(timezone.utc)
 
 
 class MatchRepository:
@@ -38,6 +59,16 @@ class MatchRepository:
         schema = files("lol_stats").joinpath("schema.sql").read_text(encoding="utf-8")
         with self.connect() as connection:
             connection.executescript(schema)
+            columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(matches)").fetchall()
+            }
+            if "start_time_utc" not in columns:
+                connection.execute("ALTER TABLE matches ADD COLUMN start_time_utc TEXT")
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_matches_start_time ON matches(start_time_utc)"
+            )
+            connection.execute("INSERT OR IGNORE INTO schema_meta(version) VALUES (2)")
 
     def save_match(self, match: MatchInput) -> int:
         match.validate()
@@ -46,11 +77,12 @@ class MatchRepository:
             connection.execute(
                 """
                 INSERT INTO matches(
-                    source, source_match_id, match_date, duration_seconds,
-                    server, championship, patch
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    source, source_match_id, match_date, start_time_utc,
+                    duration_seconds, server, championship, patch
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(source, source_match_id) DO UPDATE SET
                     match_date = excluded.match_date,
+                    start_time_utc = excluded.start_time_utc,
                     duration_seconds = excluded.duration_seconds,
                     server = excluded.server,
                     championship = excluded.championship,
@@ -60,6 +92,7 @@ class MatchRepository:
                     match.source,
                     match.source_match_id,
                     match.match_date.isoformat(),
+                    _datetime_to_storage(match.start_time_utc),
                     match.duration_seconds,
                     match.server,
                     match.championship,
@@ -117,6 +150,62 @@ class MatchRepository:
             (match_id, team, opponent, side, result, json.dumps(normalized, sort_keys=True)),
         )
 
+    def save_odds_quote(self, quote: OddsQuoteInput) -> int:
+        quote.validate()
+        self.initialize()
+        with self.connect() as connection:
+            match = connection.execute(
+                """
+                SELECT matches.id, blue.team AS team_a, red.team AS team_b
+                FROM matches
+                JOIN team_match_stats AS blue
+                  ON blue.match_id = matches.id AND blue.side = 'BLUE'
+                JOIN team_match_stats AS red
+                  ON red.match_id = matches.id AND red.side = 'RED'
+                WHERE matches.source = ? AND matches.source_match_id = ?
+                """,
+                (quote.source, quote.source_match_id),
+            ).fetchone()
+            if match is None:
+                raise ValueError("odds quote references an unknown match")
+            if str(match["team_a"]) != quote.team_a or str(match["team_b"]) != quote.team_b:
+                raise ValueError("odds team order does not match BLUE/RED match order")
+            connection.execute(
+                """
+                INSERT INTO odds_quotes(
+                    match_id, bookmaker, captured_at, team_a, team_b,
+                    team_a_odds, team_b_odds
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(match_id, bookmaker, captured_at) DO UPDATE SET
+                    team_a = excluded.team_a,
+                    team_b = excluded.team_b,
+                    team_a_odds = excluded.team_a_odds,
+                    team_b_odds = excluded.team_b_odds
+                """,
+                (
+                    int(match["id"]),
+                    quote.bookmaker,
+                    _datetime_to_storage(quote.captured_at),
+                    quote.team_a,
+                    quote.team_b,
+                    quote.team_a_odds,
+                    quote.team_b_odds,
+                ),
+            )
+            row = connection.execute(
+                """
+                SELECT id FROM odds_quotes
+                WHERE match_id = ? AND bookmaker = ? AND captured_at = ?
+                """,
+                (
+                    int(match["id"]),
+                    quote.bookmaker,
+                    _datetime_to_storage(quote.captured_at),
+                ),
+            ).fetchone()
+            assert row is not None
+            return int(row["id"])
+
     def team_names(self) -> list[str]:
         self.initialize()
         with self.connect() as connection:
@@ -151,8 +240,10 @@ class MatchRepository:
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         query = f"""
             SELECT
+                matches.source,
                 matches.source_match_id,
                 matches.match_date,
+                matches.start_time_utc,
                 matches.duration_seconds,
                 matches.server,
                 matches.championship,
@@ -198,6 +289,8 @@ class MatchRepository:
             side=str(row["side"]),
             result=float(row["result"]),
             kills_by_role=kills,
+            start_time_utc=_datetime_from_storage(row["start_time_utc"]),
+            source=str(row["source"]),
         )
 
     def iter_canonical_matches(
@@ -218,8 +311,13 @@ class MatchRepository:
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         query = f"""
             SELECT
+                matches.source,
                 matches.source_match_id,
                 matches.match_date,
+                matches.start_time_utc,
+                matches.server,
+                matches.championship,
+                matches.patch,
                 blue.team AS team_a,
                 red.team AS team_b,
                 blue.result AS result_a
@@ -240,6 +338,72 @@ class MatchRepository:
                 team_a=str(row["team_a"]),
                 team_b=str(row["team_b"]),
                 result_a=float(row["result_a"]),
+                start_time_utc=_datetime_from_storage(row["start_time_utc"]),
+                server=str(row["server"]),
+                championship=str(row["championship"]),
+                patch=None if row["patch"] is None else str(row["patch"]),
+                source=str(row["source"]),
+            )
+            for row in rows
+        ]
+
+    def iter_odds_quotes(
+        self,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        bookmaker: str | None = None,
+    ) -> list[OddsQuoteRecord]:
+        self.initialize()
+        clauses: list[str] = []
+        params: list[object] = []
+        if start_date is not None:
+            clauses.append("matches.match_date >= ?")
+            params.append(start_date.isoformat())
+        if end_date is not None:
+            clauses.append("matches.match_date <= ?")
+            params.append(end_date.isoformat())
+        if bookmaker is not None:
+            clauses.append("odds.bookmaker = ?")
+            params.append(bookmaker)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        query = f"""
+            SELECT
+                matches.source,
+                matches.source_match_id,
+                matches.match_date,
+                matches.start_time_utc,
+                blue.team AS team_a,
+                red.team AS team_b,
+                blue.result AS result_a,
+                odds.bookmaker,
+                odds.captured_at,
+                odds.team_a_odds,
+                odds.team_b_odds
+            FROM odds_quotes AS odds
+            JOIN matches ON matches.id = odds.match_id
+            JOIN team_match_stats AS blue
+              ON blue.match_id = matches.id AND blue.side = 'BLUE'
+            JOIN team_match_stats AS red
+              ON red.match_id = matches.id AND red.side = 'RED'
+            {where}
+            ORDER BY matches.match_date, matches.source_match_id, odds.captured_at
+        """
+        with self.connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [
+            OddsQuoteRecord(
+                source=str(row["source"]),
+                source_match_id=str(row["source_match_id"]),
+                match_date=date.fromisoformat(str(row["match_date"])),
+                start_time_utc=_datetime_from_storage(row["start_time_utc"]),
+                team_a=str(row["team_a"]),
+                team_b=str(row["team_b"]),
+                result_a=float(row["result_a"]),
+                bookmaker=str(row["bookmaker"]),
+                captured_at=_datetime_from_storage(row["captured_at"]),
+                team_a_odds=float(row["team_a_odds"]),
+                team_b_odds=float(row["team_b_odds"]),
             )
             for row in rows
         ]
