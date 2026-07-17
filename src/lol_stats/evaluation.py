@@ -19,17 +19,31 @@ class EvaluationReport:
 
 
 class EloModel:
-    def __init__(self, *, initial_rating: float = 1500.0, k_factor: float = 24.0) -> None:
+    def __init__(
+        self,
+        *,
+        initial_rating: float = 1500.0,
+        k_factor: float = 24.0,
+        scale: float = 400.0,
+        team_a_advantage: float = 0.0,
+    ) -> None:
+        if k_factor <= 0:
+            raise ValueError("k_factor must be positive")
+        if scale <= 0:
+            raise ValueError("scale must be positive")
         self.initial_rating = initial_rating
         self.k_factor = k_factor
+        self.scale = scale
+        self.team_a_advantage = team_a_advantage
         self.ratings: dict[str, float] = {}
 
     def rating(self, team: str) -> float:
         return self.ratings.get(team, self.initial_rating)
 
     def predict(self, team_a: str, team_b: str) -> float:
-        difference = self.rating(team_b) - self.rating(team_a)
-        return 1.0 / (1.0 + 10.0 ** (difference / 400.0))
+        adjusted_a = self.rating(team_a) + self.team_a_advantage
+        difference = self.rating(team_b) - adjusted_a
+        return 1.0 / (1.0 + 10.0 ** (difference / self.scale))
 
     def update(self, team_a: str, team_b: str, result_a: float) -> None:
         if result_a not in {0.0, 0.5, 1.0}:
@@ -48,6 +62,10 @@ def evaluate_temporally(
     test_start: date,
     test_end: date,
     update_during_test: bool = True,
+    initial_rating: float = 1500.0,
+    k_factor: float = 24.0,
+    scale: float = 400.0,
+    team_a_advantage: float = 0.0,
 ) -> EvaluationReport:
     if train_end >= test_start:
         raise ValueError("train_end must be before test_start")
@@ -64,7 +82,12 @@ def evaluate_temporally(
     ]
     testing = [item for item in ordered if test_start <= item.match_date <= test_end]
 
-    model = EloModel()
+    model = EloModel(
+        initial_rating=initial_rating,
+        k_factor=k_factor,
+        scale=scale,
+        team_a_advantage=team_a_advantage,
+    )
     for match in training:
         model.update(match.team_a, match.team_b, match.result_a)
 
