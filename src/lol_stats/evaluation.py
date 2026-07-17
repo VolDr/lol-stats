@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterable
 
 from .models import CanonicalMatch
 
@@ -104,7 +104,10 @@ def evaluate_temporally(
             log_losses.append(-0.5 * (math.log(clipped) + math.log(1.0 - clipped)))
         else:
             log_losses.append(
-                -(match.result_a * math.log(clipped) + (1.0 - match.result_a) * math.log(1.0 - clipped))
+                -(
+                    match.result_a * math.log(clipped)
+                    + (1.0 - match.result_a) * math.log(1.0 - clipped)
+                )
             )
             decisive_correct.append((prediction >= 0.5) == (match.result_a == 1.0))
         if update_during_test:
