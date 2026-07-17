@@ -45,7 +45,7 @@ class Settings:
             raise ValueError("bet_market_weight must be between 0 and 1")
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         defaults = cls()
         return cls(
             db_path=Path(os.getenv("LOL_STATS_DB_PATH", str(defaults.db_path))),
