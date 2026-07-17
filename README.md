@@ -99,9 +99,16 @@ a price, not as the outcome label:
 5. place a bet only when both edge and EV exceed configured thresholds;
 6. size it with fractional Kelly, capped by a maximum bankroll fraction.
 
+The important separation is:
+
+- Elo or a future match model estimates how likely the team is to win;
+- the bookmaker coefficient determines the price and break-even probability;
+- the strategy places a bet only when the model estimate is sufficiently above the market.
+
 By default the decision probability is the model probability. `market_weight` can blend the
 model with the no-vig market probability, but it defaults to zero so the market does not
-silently become its own betting signal.
+silently become its own betting signal. Setting it to one reproduces the market and therefore
+creates no value edge after margin removal.
 
 ```bash
 lol-stats backtest-betting \
