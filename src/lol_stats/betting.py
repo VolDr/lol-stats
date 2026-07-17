@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from statistics import mean
-from typing import Iterable
 
 from .evaluation import EloModel
 from .models import CanonicalMatch, OddsQuoteRecord
@@ -216,7 +216,7 @@ def evaluate_betting(
     train_end: date,
     test_start: date,
     test_end: date,
-    strategy: BettingStrategy = BettingStrategy(),
+    strategy: BettingStrategy | None = None,
     starting_bankroll: float = 100.0,
     update_during_test: bool = True,
     initial_rating: float = 1500.0,
@@ -224,6 +224,7 @@ def evaluate_betting(
     scale: float = 400.0,
     team_a_advantage: float = 0.0,
 ) -> BettingReport:
+    strategy = strategy or BettingStrategy()
     strategy.validate()
     if starting_bankroll <= 0:
         raise ValueError("starting_bankroll must be positive")
