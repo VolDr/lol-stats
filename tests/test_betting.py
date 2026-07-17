@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -22,7 +22,7 @@ def quote(
     *,
     bookmaker: str = "Book",
 ) -> OddsQuoteRecord:
-    start = datetime(2020, 1, 2, 18, 0, tzinfo=timezone.utc)
+    start = datetime(2020, 1, 2, 18, 0, tzinfo=UTC)
     return OddsQuoteRecord(
         source="test",
         source_match_id=match_id,
@@ -32,7 +32,7 @@ def quote(
         team_b="Beta",
         result_a=1.0,
         bookmaker=bookmaker,
-        captured_at=datetime(2020, 1, 2, captured_hour, 0, tzinfo=timezone.utc),
+        captured_at=datetime(2020, 1, 2, captured_hour, 0, tzinfo=UTC),
         team_a_odds=odds_a,
         team_b_odds=odds_b,
     )
@@ -51,7 +51,7 @@ def test_expected_value_and_kelly_are_consistent() -> None:
 
 
 def test_backtest_uses_latest_quote_before_decision_cutoff() -> None:
-    start = datetime(2020, 1, 2, 18, 0, tzinfo=timezone.utc)
+    start = datetime(2020, 1, 2, 18, 0, tzinfo=UTC)
     matches = [
         CanonicalMatch("train", date(2019, 1, 1), "Alpha", "Beta", 1.0, source="test"),
         CanonicalMatch(
@@ -88,7 +88,7 @@ def test_backtest_uses_latest_quote_before_decision_cutoff() -> None:
 
 
 def test_quote_after_start_is_ignored() -> None:
-    start = datetime(2020, 1, 2, 18, 0, tzinfo=timezone.utc)
+    start = datetime(2020, 1, 2, 18, 0, tzinfo=UTC)
     matches = [
         CanonicalMatch(
             "test",
@@ -113,7 +113,7 @@ def test_quote_after_start_is_ignored() -> None:
 
 
 def test_market_weight_one_produces_no_value_signal() -> None:
-    start = datetime(2020, 1, 2, 18, 0, tzinfo=timezone.utc)
+    start = datetime(2020, 1, 2, 18, 0, tzinfo=UTC)
     matches = [
         CanonicalMatch(
             "test",
