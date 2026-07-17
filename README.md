@@ -47,8 +47,29 @@ Each JSONL line contains one match. `start_time_utc` is optional for ordinary ra
 analysis but required for a leakage-safe betting backtest.
 
 ```json
-{"source":"example","source_match_id":"42","match_date":"2020-01-10","start_time_utc":"2020-01-10T18:00:00Z","duration_seconds":1800,"server":"EUW","championship":"Example Cup","patch":"10.1","blue":{"team":"Alpha","result":1.0,"kills_by_role":{"top":[300.0],"jungle":[420.0]}},"red":{"team":"Beta","result":0.0,"kills_by_role":{"mid":[900.0]}}}
+{
+  "source": "example",
+  "source_match_id": "42",
+  "match_date": "2020-01-10",
+  "start_time_utc": "2020-01-10T18:00:00Z",
+  "duration_seconds": 1800,
+  "server": "EUW",
+  "championship": "Example Cup",
+  "patch": "10.1",
+  "blue": {
+    "team": "Alpha",
+    "result": 1.0,
+    "kills_by_role": {"top": [300.0], "jungle": [420.0]}
+  },
+  "red": {
+    "team": "Beta",
+    "result": 0.0,
+    "kills_by_role": {"mid": [900.0]}
+  }
+}
 ```
+
+Store each object on one line in the actual JSONL file, then run:
 
 ```bash
 lol-stats import-jsonl matches.jsonl
@@ -63,8 +84,19 @@ Odds are decimal and must use the same BLUE/RED team order as the normalized mat
 `captured_at` must identify when the quote was actually available.
 
 ```json
-{"source":"example","source_match_id":"42","bookmaker":"ExampleBook","captured_at":"2020-01-10T16:30:00Z","team_a":"Alpha","team_b":"Beta","team_a_odds":2.15,"team_b_odds":1.78}
+{
+  "source": "example",
+  "source_match_id": "42",
+  "bookmaker": "ExampleBook",
+  "captured_at": "2020-01-10T16:30:00Z",
+  "team_a": "Alpha",
+  "team_b": "Beta",
+  "team_a_odds": 2.15,
+  "team_b_odds": 1.78
+}
 ```
+
+Store each object on one line in the actual JSONL file, then run:
 
 ```bash
 lol-stats import-odds-jsonl odds.jsonl
