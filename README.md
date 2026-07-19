@@ -102,6 +102,58 @@ Store each object on one line in the actual JSONL file, then run:
 lol-stats import-odds-jsonl odds.jsonl
 ```
 
+## Export League of Legends historical odds
+
+The Odds API currently does not list esports among its supported sport keys. The repository
+therefore uses a separate optional exporter for Odds-API.io, which exposes `sport=esports`,
+League of Legends leagues and historical closing odds. Its documented historical endpoint
+covers finished events from December 2025 onward and requires one league slug per request.
+
+Store the API key outside the repository:
+
+```bash
+# PowerShell
+$env:ODDS_API_IO_KEY = "YOUR_KEY"
+```
+
+First list League of Legends league slugs:
+
+```bash
+python scripts/fetch_odds_api_io_history.py \
+  --list-leagues \
+  --contains "League of Legends"
+```
+
+Print a download plan without making historical requests:
+
+```bash
+python scripts/fetch_odds_api_io_history.py \
+  --league LEAGUE_SLUG \
+  --from 2025-12-01T00:00:00Z \
+  --to 2026-06-30T23:59:59Z
+```
+
+Perform the export:
+
+```bash
+python scripts/fetch_odds_api_io_history.py \
+  --league LEAGUE_SLUG \
+  --from 2025-12-01T00:00:00Z \
+  --to 2026-06-30T23:59:59Z \
+  --bookmakers "Bet365,GG.BET,Thunderpick,Rivalry,Betway,1xBet,Stake,Unibet,Betano" \
+  --out data/raw/lol_historical_odds.jsonl \
+  --execute
+```
+
+Repeat `--league` to export several competitions in one run. The script automatically splits
+event-list requests into periods no longer than 31 days, retries rate-limit and server errors,
+and resumes by skipping event IDs whose odds are already present in the output file.
+
+The resulting file is a raw audit archive containing `historical_event` and
+`historical_odds` records. A normalization step is still required before passing the data to
+`lol-stats import-odds-jsonl`, because bookmaker market names and home/away ordering must be
+mapped explicitly rather than guessed.
+
 ## Temporal Elo evaluation
 
 ```bash
@@ -173,6 +225,7 @@ market Brier scores.
 - `LOL_STATS_BET_MAX_STAKE_FRACTION`
 - `LOL_STATS_BET_DECISION_MINUTES`
 - `LOL_STATS_BET_MARKET_WEIGHT`
+- `ODDS_API_IO_KEY`
 
 ## Legacy database note
 
