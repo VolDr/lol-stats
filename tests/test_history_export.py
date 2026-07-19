@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from datetime import UTC, datetime
 
 import pytest
@@ -27,7 +28,7 @@ def test_parse_rfc3339_normalizes_to_utc() -> None:
 
 
 def test_parse_rfc3339_rejects_naive_datetime() -> None:
-    with pytest.raises(Exception, match="timezone"):
+    with pytest.raises(argparse.ArgumentTypeError, match="timezone"):
         parse_rfc3339("2026-01-01T00:00:00")
 
 
