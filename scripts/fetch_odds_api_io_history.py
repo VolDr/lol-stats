@@ -198,10 +198,8 @@ def fetch_event_odds(
     downloaded = 0
     failed = 0
     for index, (event_id, event) in enumerate(pending, start=1):
-        print(
-            f"odds {index}/{len(pending)}: {event.get('home')} vs {event.get('away')}",
-            file=sys.stderr,
-        )
+        matchup = f"{event.get('home')} vs {event.get('away')}"
+        print(f"odds {index}/{len(pending)}: {matchup}", file=sys.stderr)
         try:
             odds = client.get(
                 "/historical/odds",
@@ -327,7 +325,7 @@ def main(argv: list[str] | None = None) -> int:
 
     validate_export_args(args)
     windows_per_league = len(list(history_windows(args.start, args.end)))
-    print(f"sport: esports")
+    print("sport: esports")
     print(f"leagues: {', '.join(args.league)}")
     print(f"period: {rfc3339(args.start)} .. {rfc3339(args.end)}")
     print(f"event-list requests: {windows_per_league * len(args.league)}")
